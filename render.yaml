@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: signalsifter-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    plan: starter          # upgrade to standard for persistent sessions at scale
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false        # set manually in Render dashboard
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+    autoDeploy: true
+    healthCheckPath: /health

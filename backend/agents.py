@@ -83,14 +83,18 @@ MANDATORY EXECUTION RULES — follow these exactly every time:
    Always set: fig.update_layout(height=500, paper_bgcolor="rgba(0,0,0,0)",
                font=dict(family="DM Sans, Arial", size=12))
 
-5. PLOTLY CHART style:
-   template = "plotly_dark"
-   paper_bgcolor = "rgba(255,255,255,0.04)"
-   plot_bgcolor  = "rgba(255,255,255,0.07)"
-   font color    = "#a0b4d0"
-   gridcolor     = "rgba(255,255,255,0.1)"
-   accent color  = "#00c9b1"
-   Always set height=500
+5. PLOTLY CHART style — copy this update_layout block EXACTLY every time:
+   fig.update_layout(
+       template="plotly_dark",
+       paper_bgcolor="rgba(255,255,255,0.04)",
+       plot_bgcolor="rgba(255,255,255,0.07)",
+       font=dict(color="#a0b4d0", family="DM Sans, Arial", size=12),
+       xaxis=dict(gridcolor="rgba(255,255,255,0.1)", zerolinecolor="rgba(255,255,255,0.15)"),
+       yaxis=dict(gridcolor="rgba(255,255,255,0.1)", zerolinecolor="rgba(255,255,255,0.15)"),
+       height=500,
+   )
+   NEVER put gridcolor directly in update_layout — always inside xaxis/yaxis dicts.
+   NEVER use font_color as a top-level update_layout key.
 
 6. Wrap Python in ```python ... ``` blocks.
    Wrap SQL in ```sql ... ``` blocks.

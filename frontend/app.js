@@ -213,11 +213,11 @@ function renderAnalysisResults(data) {
   chartEl.classList.remove("hidden");
   Plotly.newPlot(chartEl, fig.data, {
     ...fig.layout,
-    paper_bgcolor: "rgba(0,0,0,0)",
-    plot_bgcolor:  "rgba(0,0,0,.15)",
+    paper_bgcolor: "rgba(255,255,255,.04)",
+    plot_bgcolor:  "rgba(255,255,255,.07)",
     font: { color: "#8da4cc", family: "DM Sans, sans-serif" },
-    xaxis: { ...fig.layout.xaxis, gridcolor: "rgba(255,255,255,.05)", color: "#8da4cc" },
-    yaxis: { ...fig.layout.yaxis, gridcolor: "rgba(255,255,255,.05)", color: "#8da4cc" },
+    xaxis: { ...fig.layout.xaxis, gridcolor: "rgba(255,255,255,.1)", color: "#a0b4d0", zerolinecolor: "rgba(255,255,255,.15)" },
+    yaxis: { ...fig.layout.yaxis, gridcolor: "rgba(255,255,255,.1)", color: "#a0b4d0" },
     title: { ...fig.layout.title, font: { color: "#e8f0ff", family: "Syne, sans-serif", size: 17 } },
     margin: { l: 160, r: 110, t: 60, b: 50 },
   }, { responsive: true, displaylogo: false });
@@ -248,15 +248,29 @@ async function fetchLLMRecommendations() {
     });
     const data = await res.json();
     $("rec-loading").classList.add("hidden");
-    if (!res.ok || !data.recommendations?.length) {
-      $("rec-cards").innerHTML = `<p style="color:var(--txt-3);font-size:.85rem">Could not generate AI recommendations. Try asking the IV Expert agent directly.</p>`;
+    if (!res.ok) {
+      showRecError(`API error: ${data.detail || res.status}`);
+      return;
+    }
+    if (!data.recommendations || data.recommendations.length === 0) {
+      $("rec-cards").innerHTML = `<div class="rec-card" style="--rc-color:#228B22;grid-column:1/-1">
+        <div class="rec-body"><strong>All features are strong predictors (IV ≥ 0.3).</strong>
+        <p style="margin-top:.35rem">No weak or moderate predictors found that need attention. Your feature set is well-suited for modelling.</p></div></div>`;
       $("rec-cards").classList.remove("hidden");
       return;
     }
     renderRecCards(data.recommendations);
-  } catch {
+  } catch(err) {
     $("rec-loading").classList.add("hidden");
+    showRecError(err.message);
   }
+}
+
+function showRecError(msg) {
+  $("rec-cards").innerHTML = `<p style="color:var(--txt-3);font-size:.85rem;padding:.5rem">
+    ⚠ Could not generate AI recommendations: ${esc(msg)}<br>
+    Try asking the IV Expert agent directly instead.</p>`;
+  $("rec-cards").classList.remove("hidden");
 }
 
 function renderRecCards(recs) {
@@ -347,8 +361,8 @@ function renderPlotlyChart(id, plotlyJson) {
     const fig = JSON.parse(plotlyJson);
     Plotly.newPlot(el, fig.data, {
       ...(fig.layout||{}),
-      paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,.15)",
-      font:{ color:"#8da4cc", family:"DM Sans, sans-serif" },
+      paper_bgcolor:"rgba(255,255,255,.04)", plot_bgcolor:"rgba(255,255,255,.07)",
+      font:{ color:"#a0b4d0", family:"DM Sans, sans-serif" },
       margin:{ l:60, r:30, t:60, b:60 },
     }, { responsive:true, displaylogo:false });
   } catch(e) {

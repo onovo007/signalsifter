@@ -482,7 +482,7 @@ td.iv-cell { font-weight: 700; font-family: var(--font-mono); }
 .chart-wrap {
   min-height: 380px; border-radius: var(--radius-lg);
   border: 1px solid var(--glass-bdr);
-  background: rgba(0,0,0,.2); margin-bottom: 1.5rem; overflow: hidden;
+  background: rgba(255,255,255,.06); margin-bottom: 1.5rem; overflow: hidden;
 }
 
 /* ── Sub-headings inside card ──────────────────────────────────────────── */
@@ -593,7 +593,7 @@ td.iv-cell { font-weight: 700; font-family: var(--font-mono); }
 .code-block code { font-family: var(--font-mono); color: #cdd9f0; white-space: pre; font-size: var(--fs-xs); }
 
 /* ── Plotly output ─────────────────────────────────────────────────────── */
-.plot-output { margin-top: 1rem; border-radius: var(--radius-lg); border: 1px solid var(--glass-bdr); min-height: 500px; background: rgba(0,0,0,.2); }
+.plot-output { margin-top: 1rem; border-radius: var(--radius-lg); border: 1px solid rgba(255,255,255,.12); min-height: 500px; background: rgba(255,255,255,.06); }
 
 /* ── Spinner ───────────────────────────────────────────────────────────── */
 .spinner {

@@ -1,16 +1,11 @@
 """
-SignalSifter – AI Agent Layer (v2.1)
+SignalSifter – AI Agent Layer (v2.2)
 Dr. Amobi Andrew Onovo
-Upgrades: Plotly charts · Conversation memory · Python + SQL code generation
+Fixes: statsmodels execution · robust LLM recs · weak-predictor-only recs
 """
-import os
-import re
-import json
-import traceback
-import sys
+import os, re, json, traceback, sys
 import pandas as pd
 import numpy as np
-import plotly
 import plotly.graph_objects as go
 import plotly.express as px
 from io import StringIO
@@ -18,294 +13,343 @@ from openai import OpenAI
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# ── IV-Aware Expert Agent ─────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# IV-AWARE EXPERT AGENT
+# ═══════════════════════════════════════════════════════════════════════════════
 def iv_expert_agent(question: str, iv_results: dict) -> str:
     if not iv_results:
         return "Please run an IV analysis first before asking questions."
 
     summary_str = pd.DataFrame(iv_results["summary"]).to_string()
     context = f"""
-You are an expert data scientist specialising in Weight of Evidence (WoE) and Information Value (IV) analysis.
+You are an expert data scientist specialising in Weight of Evidence (WoE) and
+Information Value (IV) analysis for binary classification.
 
 CURRENT ANALYSIS:
-Target Variable: {iv_results.get('target', 'N/A')}
-Features Analysed: {iv_results.get('n_features', 0)}
-Binning Strategy: {iv_results.get('bins', 5)} bins
+Target Variable : {iv_results.get('target', 'N/A')}
+Features        : {iv_results.get('n_features', 0)}
+Bins            : {iv_results.get('bins', 5)}
 
 IV RESULTS:
 {summary_str}
 
 IV THRESHOLDS:
-- IV > 0.5 : Very Strong (check for leakage)
-- 0.3-0.5  : Strong (include)
-- 0.1-0.3  : Moderate (engineer)
-- 0.02-0.1 : Weak (quality check)
-- < 0.02   : Not useful (exclude)
+- IV > 0.5  : Very Strong (check for data leakage)
+- 0.3–0.5   : Strong     (include in model)
+- 0.1–0.3   : Moderate   (feature engineer)
+- 0.02–0.1  : Weak       (data quality check)
+- < 0.02    : Not useful (exclude)
 
 Answer concisely but thoroughly. Reference specific feature names and IV values.
-
-User question: {question}
 """
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "system", "content": context},
                       {"role": "user", "content": question}],
-            temperature=0.3,
-            max_tokens=900,
+            temperature=0.3, max_tokens=900,
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"Agent error: {str(e)}"
+        return f"Agent error: {e}"
 
 
-# ── System prompt for General Agent ─────────────────────────────────────────
-SYSTEM_PROMPT = """You are an elite data scientist and Python/SQL expert with deep expertise in:
-- Advanced statistical analysis and exploratory data analysis (EDA)
-- Plotly for premium interactive visualisations (ALWAYS use Plotly, never matplotlib)
-- Pandas, NumPy, SciPy for data manipulation and statistical tests
-- SQL query generation and optimisation
-- Machine learning with scikit-learn
-- Writing clear, production-quality, well-commented Python code
+# ═══════════════════════════════════════════════════════════════════════════════
+# GENERAL DATA SCIENCE AGENT
+# ═══════════════════════════════════════════════════════════════════════════════
+SYSTEM_PROMPT = """You are an elite data scientist and Python expert.
 
-CRITICAL RULES:
-1. ALWAYS use Plotly for any chart, plot, or visualisation. Never use matplotlib or seaborn.
-2. When generating a Plotly chart, the LAST line of the code block MUST be:
-   print("PLOTLY_JSON:" + fig.to_json())
-3. Wrap Python code in ```python ... ``` blocks
-4. Wrap SQL code in ```sql ... ``` blocks
-5. Always explain what the code does clearly before showing it
-6. The dataframe is pre-loaded as `df` — never read from files
-7. For SQL queries, assume the dataframe is a table called `data`
-8. Reference conversation history to answer follow-up questions in context
+MANDATORY EXECUTION RULES — follow these exactly every time:
 
-PLOTLY STYLE (always apply these):
-- template="plotly_white"
-- Add meaningful title, axis labels, and hover tooltips
-- Use px.colors.qualitative.Set2 for categorical color sequences
-- Use color_continuous_scale="Teal" for heatmaps/continuous
-- Always include: fig.update_layout(height=500, font=dict(family="Inter, Arial", size=13))
-- Add fig.update_traces(marker=dict(line=dict(width=0.5, color="white"))) for bar/scatter
+1. When asked to run, compute, fit, or analyse anything:
+   - Write a COMPLETE, SELF-CONTAINED Python code block
+   - The code WILL be executed server-side — do not just describe it
+   - All imports must be inside the code block (statsmodels, scipy, sklearn, etc.)
+   - Data is in `df` — never read files
+
+2. For ALL statistical tables (regression, ANOVA, summary stats):
+   - Build a Plotly go.Table figure showing the results
+   - End the code block with: print("PLOTLY_JSON:" + fig.to_json())
+
+3. For ALL charts and visualisations:
+   - Use ONLY Plotly (never matplotlib or seaborn)
+   - End the code block with: print("PLOTLY_JSON:" + fig.to_json())
+
+4. PLOTLY TABLE style:
+   header_fill  = "#006666"
+   header_font  = white, bold
+   cell_fill    = alternating "#0a1628" / "#0f2040"
+   cell_font    = "#e8f0ff"
+   Always set: fig.update_layout(height=500, paper_bgcolor="rgba(0,0,0,0)",
+               font=dict(family="DM Sans, Arial", size=12))
+
+5. PLOTLY CHART style:
+   template = "plotly_dark"
+   paper_bgcolor = "rgba(255,255,255,0.04)"
+   plot_bgcolor  = "rgba(255,255,255,0.07)"
+   font color    = "#a0b4d0"
+   gridcolor     = "rgba(255,255,255,0.1)"
+   accent color  = "#00c9b1"
+   Always set height=500
+
+6. Wrap Python in ```python ... ``` blocks.
+   Wrap SQL in ```sql ... ``` blocks.
+
+7. Keep explanations concise. Put them BEFORE the code block, not after.
 """
 
 
-# ── General Data Science Agent ────────────────────────────────────────────────
 def general_data_agent(question: str, df: pd.DataFrame,
                        cat_cols: list = None, num_cols: list = None,
                        dep_col: str = None, history: list = None) -> dict:
-    """
-    Enhanced agent with Plotly charts, conversation memory, Python + SQL generation.
-    history: list of {"role": "user"|"assistant", "content": str}
-    """
     if df is None or df.empty:
-        return {"text": "No dataset loaded. Please upload a file first.",
-                "plotly_json": None, "code": None}
+        return {"text": "No dataset loaded.", "plotly_json": None, "code": None}
 
     df_info = _build_df_context(df, cat_cols or [], num_cols or [], dep_col)
-
     messages = [{"role": "system", "content": SYSTEM_PROMPT + "\n\n" + df_info}]
-
-    # Include last 10 conversation turns for memory
     if history:
         for turn in history[-10:]:
             messages.append({"role": turn["role"], "content": turn["content"]})
-
     messages.append({"role": "user", "content": question})
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=messages,
-            temperature=0.2,
-            max_tokens=2500,
+            model="gpt-4o", messages=messages,
+            temperature=0.15, max_tokens=3000,
         )
         reply = response.choices[0].message.content
-
-        # Extract Python code blocks and try to execute for Plotly output
-        plotly_json = None
         code_blocks = _extract_code_blocks(reply, "python")
-
-        if code_blocks:
-            plotly_json = _execute_plotly_code(code_blocks[0], df)
-
-        return {
-            "text": reply,
-            "plotly_json": plotly_json,
-            "code": code_blocks[0] if code_blocks else None,
-        }
-
+        plotly_json = _execute_plotly_code(code_blocks[0], df) if code_blocks else None
+        return {"text": reply, "plotly_json": plotly_json,
+                "code": code_blocks[0] if code_blocks else None}
     except Exception as e:
-        return {
-            "text": f"Agent error: {str(e)}\n{traceback.format_exc()[-400:]}",
-            "plotly_json": None,
-            "code": None,
-        }
+        return {"text": f"Agent error: {e}\n{traceback.format_exc()[-400:]}",
+                "plotly_json": None, "code": None}
 
 
-def _build_df_context(df: pd.DataFrame, cat_cols: list, num_cols: list, dep_col: str) -> str:
-    """Build a rich dataframe context string for the LLM."""
-    shape = df.shape
-    dtypes = df.dtypes.to_string()
-    sample = df.head(3).to_string()
-    nulls = df.isnull().sum()
-    nulls_str = nulls[nulls > 0].to_string() if nulls.any() else "None"
-
-    numeric_df = df.select_dtypes(include=[np.number])
-    stats = numeric_df.describe().round(3).to_string() if not numeric_df.empty else "N/A"
-
-    selected_cat = f"User-selected categorical columns: {cat_cols}" if cat_cols else ""
-    selected_num = f"User-selected numerical columns: {num_cols}" if num_cols else ""
-    selected_dep = f"Dependent variable: {dep_col}" if dep_col else ""
-
+def _build_df_context(df, cat_cols, num_cols, dep_col):
+    shape   = df.shape
+    dtypes  = df.dtypes.to_string()
+    sample  = df.head(3).to_string()
+    nulls   = df.isnull().sum()
+    nulls_s = nulls[nulls > 0].to_string() if nulls.any() else "None"
+    num_df  = df.select_dtypes(include=[np.number])
+    stats   = num_df.describe().round(3).to_string() if not num_df.empty else "N/A"
     return f"""
-DATASET CONTEXT:
-Shape: {shape[0]} rows x {shape[1]} columns
-Columns & dtypes:
+DATASET: {shape[0]} rows × {shape[1]} columns
+Dtypes:
 {dtypes}
 
-Missing values: {nulls_str}
+Missing: {nulls_s}
 
-Descriptive statistics:
+Stats:
 {stats}
 
-Sample rows:
+Sample:
 {sample}
 
-{selected_cat}
-{selected_num}
-{selected_dep}
+Selected categorical: {cat_cols or 'none specified'}
+Selected numerical  : {num_cols or 'none specified'}
+Dependent variable  : {dep_col or 'none specified'}
 
-The dataframe is available as `df` in your code.
+Dataframe available as `df`.
 """
 
 
-def _extract_code_blocks(text: str, lang: str = "python") -> list:
-    """Extract fenced code blocks of a given language."""
-    pattern = rf"```{lang}\s*(.*?)```"
-    return re.findall(pattern, text, re.DOTALL)
+def _extract_code_blocks(text, lang="python"):
+    return re.findall(rf"```{lang}\s*(.*?)```", text, re.DOTALL)
 
 
 def _execute_plotly_code(code: str, df: pd.DataFrame):
-    """
-    Execute Python code in a sandboxed namespace.
-    Captures Plotly figure JSON via print marker or `fig` variable.
-    """
-    namespace = {
-        "df": df.copy(),
-        "pd": pd,
-        "np": np,
-        "go": go,
-        "px": px,
-        "json": json,
-    }
-
-    stdout_capture = StringIO()
-    old_stdout = sys.stdout
-    sys.stdout = stdout_capture
-
+    """Execute code server-side. statsmodels, scipy, sklearn all available."""
     try:
-        exec(code, namespace)  # nosec
-    except Exception:
-        sys.stdout = old_stdout
-        return None
+        import statsmodels.api as sm
+        import statsmodels.formula.api as smf
+        from scipy import stats as scipy_stats
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.metrics import roc_auc_score, classification_report
+    except ImportError:
+        pass  # best-effort imports
+
+    namespace = {
+        "df": df.copy(), "pd": pd, "np": np,
+        "go": go, "px": px, "json": json,
+    }
+    # Inject optional libraries if available
+    for lib_name, lib_alias in [
+        ("statsmodels.api", "sm"),
+        ("statsmodels.formula.api", "smf"),
+        ("scipy.stats", "scipy_stats"),
+        ("sklearn.linear_model", "linear_model"),
+        ("sklearn.metrics", "metrics"),
+        ("sklearn.preprocessing", "preprocessing"),
+    ]:
+        try:
+            import importlib
+            namespace[lib_alias] = importlib.import_module(lib_name)
+        except Exception:
+            pass
+
+    stdout_cap = StringIO()
+    old_out = sys.stdout
+    sys.stdout = stdout_cap
+    try:
+        exec(code, namespace)          # nosec
+    except Exception as exc:
+        sys.stdout = old_out
+        # Return a Plotly error table so user sees what went wrong
+        err_msg = traceback.format_exc()
+        fig = go.Figure(go.Table(
+            header=dict(values=["Execution Error"],
+                        fill_color="#7f1d1d", font=dict(color="white", size=13)),
+            cells=dict(values=[[err_msg]],
+                       fill_color="#1c0a0a", font=dict(color="#fca5a5", size=11)),
+        ))
+        fig.update_layout(height=300, paper_bgcolor="rgba(0,0,0,0)")
+        return fig.to_json()
     finally:
-        sys.stdout = old_stdout
+        sys.stdout = old_out
 
-    output = stdout_capture.getvalue()
+    output = stdout_cap.getvalue()
 
-    # Method 1: look for PLOTLY_JSON: marker in stdout
+    # Priority 1 — PLOTLY_JSON: marker in stdout
     for line in output.splitlines():
         if line.startswith("PLOTLY_JSON:"):
             return line[len("PLOTLY_JSON:"):]
 
-    # Method 2: look for `fig` variable in namespace
+    # Priority 2 — `fig` variable in namespace
     fig = namespace.get("fig")
     if fig is not None and hasattr(fig, "to_json"):
+        return fig.to_json()
+
+    # Priority 3 — if there's printed text output (e.g. a dataframe),
+    # wrap it in a Plotly table so it renders visually
+    if output.strip():
+        lines = [l for l in output.strip().splitlines() if l.strip()]
+        fig = go.Figure(go.Table(
+            header=dict(values=["Output"],
+                        fill_color="#006666",
+                        font=dict(color="white", size=12, family="DM Sans")),
+            cells=dict(values=[lines],
+                       fill_color="#0a1628",
+                       font=dict(color="#e8f0ff", size=11, family="JetBrains Mono"),
+                       align="left"),
+        ))
+        fig.update_layout(height=max(300, len(lines) * 30 + 80),
+                          paper_bgcolor="rgba(255,255,255,0.04)",
+                          plot_bgcolor="rgba(255,255,255,0.06)",
+                          margin=dict(l=10, r=10, t=10, b=10))
         return fig.to_json()
 
     return None
 
 
-# ── LLM-Powered Feature Recommendations ──────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# LLM-POWERED FEATURE RECOMMENDATIONS
+# Only targets WEAK + MODERATE predictors (IV < 0.3) — actionable focus
+# ═══════════════════════════════════════════════════════════════════════════════
 def llm_recommendations(iv_results: dict) -> list:
-    """
-    Generate rich, expert recommendations for each feature using GPT-4o.
-    Returns a list of dicts: {feature, iv, gini, ks, label, color, action, steps, narrative}
-    """
     if not iv_results or not iv_results.get("summary"):
         return []
 
     summary_df = pd.DataFrame(iv_results["summary"])
-    summary_str = summary_df.to_string(index=False)
     target = iv_results.get("target", "target")
 
-    prompt = f"""You are a senior data scientist expert in WoE/IV analysis for binary classification models.
+    # ── Filter to features needing attention (IV < 0.3) ──────────────────────
+    needs_attention = summary_df[summary_df["IV"] < 0.3].copy()
+    strong_features = summary_df[summary_df["IV"] >= 0.3].copy()
 
-DATASET TARGET: {target}
+    if needs_attention.empty:
+        # All features are strong — brief note, no deep recs needed
+        needs_attention = summary_df.copy()
 
-IV ANALYSIS RESULTS:
-{summary_str}
+    weak_str   = needs_attention.to_string(index=False)
+    strong_str = strong_features[["feature","IV"]].to_string(index=False) if not strong_features.empty else "None"
 
-For EACH feature listed above, generate expert recommendations. Respond in valid JSON only — an array of objects with this exact structure:
-[
-  {{
-    "feature": "feature_name",
-    "action": "One-sentence primary action",
-    "narrative": "2-3 sentences of expert insight about this specific feature's IV, Gini, and KS patterns and what they imply about the data and target relationship",
-    "steps": ["Specific step 1", "Specific step 2", "Specific step 3"]
-  }}
-]
+    prompt = f"""You are a senior data scientist specialising in WoE/IV analysis.
 
-Be specific to the actual feature names and values. Do not be generic. Reference the actual IV, Gini, KS numbers in your narrative. Return ONLY the JSON array, no preamble."""
+TARGET VARIABLE: {target}
+
+STRONG PREDICTORS (IV ≥ 0.3) — already good, no action needed:
+{strong_str}
+
+FEATURES NEEDING ATTENTION (IV < 0.3) — focus your recommendations here:
+{weak_str}
+
+Generate expert, specific recommendations ONLY for the features needing attention.
+Each recommendation must reference the actual IV, Gini, and KS values and explain
+what they reveal about the predictor-target relationship.
+
+Respond with a JSON object in this exact format:
+{{
+  "recommendations": [
+    {{
+      "feature": "exact_feature_name",
+      "action": "One clear sentence on what to do",
+      "narrative": "2-3 sentences citing the actual IV/Gini/KS values and their meaning",
+      "steps": ["Concrete step 1", "Concrete step 2", "Concrete step 3"]
+    }}
+  ]
+}}
+
+Be specific. Do not be generic. Do not include strong predictors."""
 
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
+            temperature=0.25,
             max_tokens=2500,
             response_format={"type": "json_object"},
         )
         raw = response.choices[0].message.content
         parsed = json.loads(raw)
-        # Handle both {"recommendations": [...]} and plain [...]
-        recs_raw = parsed if isinstance(parsed, list) else parsed.get("recommendations", list(parsed.values())[0])
 
-        # Merge with IV/colour data
+        # Always expect {"recommendations": [...]} thanks to the explicit prompt
+        recs_raw = parsed.get("recommendations", [])
+        if not recs_raw and isinstance(parsed, dict):
+            # Fallback: grab the first list value in the dict
+            for v in parsed.values():
+                if isinstance(v, list):
+                    recs_raw = v
+                    break
+
         iv_map = {r["feature"]: r for r in iv_results["summary"]}
         results = []
         for rec in recs_raw:
             feat = rec.get("feature", "")
             iv_row = iv_map.get(feat, {})
-            iv = iv_row.get("IV", 0)
+            iv = float(iv_row.get("IV", 0))
             results.append({
-                "feature": feat,
-                "iv": iv,
-                "gini": iv_row.get("Gini", 0),
-                "ks":   iv_row.get("KS_Statistic", 0),
-                "label": _iv_label(iv),
-                "color": _iv_color(iv),
-                "action": rec.get("action", ""),
+                "feature":   feat,
+                "iv":        iv,
+                "gini":      iv_row.get("Gini", 0),
+                "ks":        iv_row.get("KS_Statistic", 0),
+                "label":     _iv_label(iv),
+                "color":     _iv_color(iv),
+                "action":    rec.get("action", ""),
                 "narrative": rec.get("narrative", ""),
-                "steps": rec.get("steps", []),
+                "steps":     rec.get("steps", []),
             })
         return results
+
     except Exception as e:
-        # Fallback to static recommendations
+        print(f"LLM recommendations error: {e}\n{traceback.format_exc()}")
         return []
 
 
+# ── Colour / label helpers ────────────────────────────────────────────────────
 def _iv_color(iv: float) -> str:
-    if iv > 0.5:  return "#006400"
-    if iv >= 0.3: return "#228B22"
-    if iv >= 0.1: return "#d97706"
-    if iv >= 0.02:return "#dc2626"
+    if iv > 0.5:   return "#006400"
+    if iv >= 0.3:  return "#228B22"
+    if iv >= 0.1:  return "#d97706"
+    if iv >= 0.02: return "#dc2626"
     return "#6b7280"
 
-
 def _iv_label(iv: float) -> str:
-    if iv > 0.5:  return "Very Strong"
-    if iv >= 0.3: return "Strong"
-    if iv >= 0.1: return "Moderate"
-    if iv >= 0.02:return "Weak"
+    if iv > 0.5:   return "Very Strong"
+    if iv >= 0.3:  return "Strong"
+    if iv >= 0.1:  return "Moderate"
+    if iv >= 0.02: return "Weak"
     return "Not Useful"

@@ -202,11 +202,13 @@ def _execute_plotly_code(code: str, df: pd.DataFrame):
         err_msg = traceback.format_exc()
         fig = go.Figure(go.Table(
             header=dict(values=["Execution Error"],
-                        fill_color="#7f1d1d", font=dict(color="white", size=13)),
+                        fill_color="#7f1d1d",
+                        font_color="white", font_size=13, align="left"),
             cells=dict(values=[[err_msg]],
-                       fill_color="#1c0a0a", font=dict(color="#fca5a5", size=11)),
+                       fill_color="#1c0a0a",
+                       font_color="#fca5a5", font_size=11, align="left"),
         ))
-        fig.update_layout(height=300, paper_bgcolor="rgba(0,0,0,0)")
+        fig.update_layout(height=300, paper_bgcolor="rgba(255,255,255,0.04)")
         return fig.to_json()
     finally:
         sys.stdout = old_out
@@ -228,18 +230,26 @@ def _execute_plotly_code(code: str, df: pd.DataFrame):
     if output.strip():
         lines = [l for l in output.strip().splitlines() if l.strip()]
         fig = go.Figure(go.Table(
-            header=dict(values=["Output"],
-                        fill_color="#006666",
-                        font=dict(color="white", size=12, family="DM Sans")),
-            cells=dict(values=[lines],
-                       fill_color="#0a1628",
-                       font=dict(color="#e8f0ff", size=11, family="JetBrains Mono"),
-                       align="left"),
+            header=dict(
+                values=["Output"],
+                fill_color="#006666",
+                font_color="white",
+                font_size=12,
+                align="left",
+            ),
+            cells=dict(
+                values=[lines],
+                fill_color="#0a1628",
+                font_color="#e8f0ff",
+                font_size=11,
+                align="left",
+            ),
         ))
-        fig.update_layout(height=max(300, len(lines) * 30 + 80),
-                          paper_bgcolor="rgba(255,255,255,0.04)",
-                          plot_bgcolor="rgba(255,255,255,0.06)",
-                          margin=dict(l=10, r=10, t=10, b=10))
+        fig.update_layout(
+            height=max(300, len(lines) * 30 + 80),
+            paper_bgcolor="rgba(255,255,255,0.04)",
+            margin=dict(l=10, r=10, t=10, b=10)
+        )
         return fig.to_json()
 
     return None

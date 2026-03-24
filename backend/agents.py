@@ -75,13 +75,29 @@ MANDATORY EXECUTION RULES — follow these exactly every time:
    - Use ONLY Plotly (never matplotlib or seaborn)
    - End the code block with: print("PLOTLY_JSON:" + fig.to_json())
 
-4. PLOTLY TABLE style:
-   header_fill  = "#006666"
-   header_font  = white, bold
-   cell_fill    = alternating "#0a1628" / "#0f2040"
-   cell_font    = "#e8f0ff"
-   Always set: fig.update_layout(height=500, paper_bgcolor="rgba(0,0,0,0)",
-               font=dict(family="DM Sans, Arial", size=12))
+4. PLOTLY TABLE style — use this EXACT pattern, no deviations:
+
+   header=dict(
+       values=["Col1", "Col2"],
+       fill_color="#006666",
+       font_color="white",
+       font_size=13,
+       align="center",
+   ),
+   cells=dict(
+       values=[col1_data, col2_data],
+       fill_color=[["#0a1628","#0f2040"] * (len(data)//2 + 1)][:1] * len(columns),
+       font_color="#e8f0ff",
+       font_size=12,
+       align="left",
+   )
+   fig.update_layout(height=500, paper_bgcolor="rgba(255,255,255,0.04)",
+                     font=dict(family="DM Sans, Arial", size=12))
+
+   CRITICAL TABLE RULES:
+   - NEVER use font=dict(...) inside header or cells — use font_color= and font_size= directly
+   - NEVER use bold=True anywhere in any font specification
+   - For alternating row colors use: fill_color=[["#0a1628","#0f2040"]*(n//2+1)][:n] as a list
 
 5. PLOTLY CHART style — copy this update_layout block EXACTLY every time:
    fig.update_layout(
@@ -164,7 +180,16 @@ def _extract_code_blocks(text, lang="python"):
     return re.findall(rf"```{lang}\s*(.*?)```", text, re.DOTALL)
 
 
+
+def _sanitise_code(code):
+    """Remove invalid Plotly font kwargs GPT-4o sometimes emits."""
+    import re as r
+    code = r.sub(r",?\s*bold\s*=\s*(?:True|False)", "", code)
+    return code
+
+
 def _execute_plotly_code(code: str, df: pd.DataFrame):
+    code = _sanitise_code(code)
     """Execute code server-side. statsmodels, scipy, sklearn all available."""
     try:
         import statsmodels.api as sm

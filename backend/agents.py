@@ -116,6 +116,22 @@ MANDATORY EXECUTION RULES — follow these exactly every time:
    Wrap SQL in ```sql ... ``` blocks.
 
 7. Keep explanations concise. Put them BEFORE the code block, not after.
+
+8. STATELESS EXECUTION — the most important rule for follow-up questions:
+   Each code block runs in a FRESH Python environment. Variables from previous
+   turns DO NOT exist. `result`, `model`, `summary`, `fig` — all gone.
+   
+   On ANY follow-up (e.g. "show significant variables", "plot odds ratios",
+   "interpret the results"):
+   - Re-run the COMPLETE pipeline from scratch in one self-contained block
+   - Re-import libraries, re-fit the model, re-extract results, THEN show new output
+   - Use conversation history ONLY to understand intent — not as live code state
+   
+   Example: if user says "now show odds ratios", your code must:
+   1. Re-import statsmodels, re-fit logistic regression
+   2. Compute odds ratios = np.exp(result.params)
+   3. Build and display the Plotly table/chart
+   All in one code block.
 """
 
 

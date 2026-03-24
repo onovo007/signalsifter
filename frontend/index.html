@@ -3,239 +3,289 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SignalSifter · Dr. Amobi Andrew Onovo</title>
+  <title>SignalSifter · Quantium Insights</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-<!-- ═══ TOP NAV ════════════════════════════════════════════════════════════ -->
-<nav class="topnav">
-  <div class="topnav-brand">
-    <span class="brand-icon">🧠</span>
-    <span class="brand-name">SignalSifter</span>
-    <span class="brand-sub">by Dr. Amobi Andrew Onovo</span>
-  </div>
-  <div class="topnav-links">
-    <a href="#upload-section"   class="nav-link active" data-section="upload">Upload</a>
-    <a href="#analysis-section" class="nav-link"         data-section="analysis">IV Analysis</a>
-    <a href="#agent-section"    class="nav-link"         data-section="agent">AI Agent</a>
-    <a href="#general-section"  class="nav-link"         data-section="general">Data Agent</a>
-  </div>
-  <div class="topnav-status">
-    <span class="status-dot" id="api-status-dot"></span>
-    <span id="api-status-text" class="status-text">Connecting…</span>
-  </div>
-</nav>
+<!-- ══ AMBIENT BACKGROUND ══════════════════════════════════════════════════ -->
+<div class="ambient" aria-hidden="true">
+  <div class="ambient-orb orb-1"></div>
+  <div class="ambient-orb orb-2"></div>
+  <div class="ambient-orb orb-3"></div>
+  <div class="grid-overlay"></div>
+</div>
 
-<!-- ═══ HERO ═══════════════════════════════════════════════════════════════ -->
-<header class="hero">
-  <div class="hero-content">
-    <h1 class="hero-title">Advanced Feature Selection</h1>
-    <p class="hero-subtitle">Weight of Evidence · Information Value · Gini · KS · AI-Powered Insights</p>
-    <div class="hero-pills">
-      <span class="pill pill-teal">IV / WoE Analysis</span>
-      <span class="pill pill-blue">GPT-4o Agent</span>
-      <span class="pill pill-purple">LangChain</span>
-      <span class="pill pill-green">Plotly Charts</span>
+<!-- ══ SIDEBAR NAV ════════════════════════════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-mark">SS</div>
+    <div class="brand-text">
+      <span class="brand-name">SignalSifter</span>
+      <span class="brand-tag">Quantium Insights</span>
     </div>
   </div>
-</header>
 
-<!-- ═══ MAIN CONTENT ════════════════════════════════════════════════════════ -->
-<main class="content">
+  <nav class="sidenav">
+    <a href="#upload-section"   class="sidenav-item active" data-section="upload-section">
+      <span class="sidenav-icon">⬆</span><span class="sidenav-label">Upload</span>
+    </a>
+    <a href="#analysis-section" class="sidenav-item" data-section="analysis-section">
+      <span class="sidenav-icon">📊</span><span class="sidenav-label">IV Analysis</span>
+    </a>
+    <a href="#agent-section"    class="sidenav-item" data-section="agent-section">
+      <span class="sidenav-icon">🤖</span><span class="sidenav-label">IV Expert</span>
+    </a>
+    <a href="#general-section"  class="sidenav-item" data-section="general-section">
+      <span class="sidenav-icon">🔬</span><span class="sidenav-label">Data Agent</span>
+    </a>
+  </nav>
 
-  <!-- ─── THRESHOLDS REFERENCE ─────────────────────────────────────────── -->
-  <section class="card threshold-card">
-    <div class="card-header">
-      <span class="card-icon">📊</span>
-      <h2 class="card-title">IV Interpretation Thresholds</h2>
+  <div class="sidebar-footer">
+    <div class="api-pill" id="api-pill">
+      <span class="api-dot" id="api-dot"></span>
+      <span id="api-label">Connecting…</span>
     </div>
-    <div class="threshold-grid">
-      <div class="threshold-row header-row">
-        <span>IV Range</span><span>Interpretation</span><span>Recommendation</span>
-      </div>
-      <div class="threshold-row" style="--stripe:#006400">
-        <span><b>IV &gt; 0.5</b></span><span>Very Strong Predictor</span><span>Investigate further — check for data leakage</span>
-      </div>
-      <div class="threshold-row" style="--stripe:#228B22">
-        <span><b>0.3 ≤ IV ≤ 0.5</b></span><span>Strong Predictor</span><span>Definitely include, explore interactions</span>
-      </div>
-      <div class="threshold-row" style="--stripe:#E8A020">
-        <span><b>0.1 ≤ IV &lt; 0.3</b></span><span>Moderate Predictor</span><span>Consider feature engineering</span>
-      </div>
-      <div class="threshold-row" style="--stripe:#E03E1A">
-        <span><b>0.02 ≤ IV &lt; 0.1</b></span><span>Weak Predictor</span><span>Investigate outliers / data quality</span>
-      </div>
-      <div class="threshold-row" style="--stripe:#888">
-        <span><b>IV &lt; 0.02</b></span><span>Not Useful</span><span>Consider excluding or redesigning</span>
-      </div>
-    </div>
-    <p class="threshold-note">Additional metrics: Gini Coefficient (0–1, higher = better discrimination) · KS Statistic (0–1, higher = better class separation)</p>
-  </section>
+    <p class="sidebar-credit">Dr. Amobi Andrew Onovo</p>
+  </div>
+</aside>
 
-  <!-- ─── UPLOAD ────────────────────────────────────────────────────────── -->
-  <section class="card" id="upload-section">
-    <div class="card-header">
-      <span class="card-icon">📤</span>
-      <h2 class="card-title">Upload Dataset</h2>
-      <span class="card-badge">CSV / TSV</span>
-    </div>
+<!-- ══ MAIN PANEL ═════════════════════════════════════════════════════════ -->
+<div class="main-panel">
 
-    <div class="upload-zone" id="drop-zone">
-      <div class="upload-icon">⬆</div>
-      <p class="upload-label">Drop your file here or <label for="file-input" class="upload-link">browse</label></p>
-      <p class="upload-hint">Supports .csv · .tsv · .txt — max 50 MB</p>
-      <input type="file" id="file-input" accept=".csv,.tsv,.txt" hidden />
-    </div>
-
-    <div id="upload-feedback" class="feedback hidden"></div>
-
-    <div id="bins-row" class="bins-row hidden">
-      <label class="form-label">Number of bins for numeric features</label>
-      <div class="slider-wrap">
-        <input type="range" id="bins-slider" min="2" max="10" value="5" class="slider" />
-        <span class="slider-val" id="bins-val">5</span>
+  <!-- HERO -->
+  <header class="hero">
+    <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu">☰</button>
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Advanced Feature Selection</div>
+      <h1 class="hero-title">Signal<span class="accent">Sifter</span></h1>
+      <p class="hero-sub">Weight of Evidence · Information Value · Gini · KS · GPT-4o Insights</p>
+      <div class="hero-tags">
+        <span class="htag">IV / WoE Engine</span>
+        <span class="htag">GPT-4o Powered</span>
+        <span class="htag">Interactive Plotly</span>
+        <span class="htag">Memory Agent</span>
       </div>
     </div>
+  </header>
 
-    <div id="preview-wrap" class="hidden">
-      <h3 class="section-sub">Data Preview</h3>
-      <div class="table-scroll" id="preview-table"></div>
-      <p id="dataset-info" class="info-text"></p>
-    </div>
-  </section>
+  <div class="page-content">
 
-  <!-- ─── COLUMN SELECTION ─────────────────────────────────────────────── -->
-  <section class="card hidden" id="cols-section">
-    <div class="card-header">
-      <span class="card-icon">🎯</span>
-      <h2 class="card-title">Column Configuration</h2>
-    </div>
-    <div class="cols-grid">
-      <div class="select-group">
-        <label class="form-label" for="target-select">Target Column <span class="badge-required">binary 0/1</span></label>
-        <select id="target-select" class="select-field"><option value="">-- select target --</option></select>
+    <!-- ── THRESHOLDS ──────────────────────────────────────────────────── -->
+    <section class="glass-card thresh-card">
+      <div class="card-head">
+        <h2 class="card-title"><span class="c-icon">📐</span> IV Interpretation Guide</h2>
       </div>
-      <div class="select-group">
-        <label class="form-label">Independent Features</label>
-        <div class="multi-select-wrap" id="indep-wrap"></div>
+      <div class="thresh-table">
+        <div class="thresh-row thresh-head">
+          <span>IV Range</span><span>Strength</span><span>Action</span>
+        </div>
+        <div class="thresh-row" style="--bar:#006400">
+          <span><code>IV &gt; 0.5</code></span><span>Very Strong</span><span>Investigate for data leakage</span>
+        </div>
+        <div class="thresh-row" style="--bar:#228B22">
+          <span><code>0.3 – 0.5</code></span><span>Strong</span><span>Include, explore interactions</span>
+        </div>
+        <div class="thresh-row" style="--bar:#d97706">
+          <span><code>0.1 – 0.3</code></span><span>Moderate</span><span>Feature engineering opportunity</span>
+        </div>
+        <div class="thresh-row" style="--bar:#dc2626">
+          <span><code>0.02 – 0.1</code></span><span>Weak</span><span>Investigate data quality</span>
+        </div>
+        <div class="thresh-row" style="--bar:#6b7280">
+          <span><code>&lt; 0.02</code></span><span>Not Useful</span><span>Exclude or redesign</span>
+        </div>
       </div>
-      <div class="select-group">
-        <label class="form-label">Exclude Columns <span class="badge-optional">optional</span></label>
-        <div class="multi-select-wrap" id="excl-wrap"></div>
+      <p class="thresh-note">Gini Coefficient (0–1) · KS Statistic (0–1) · higher values = better separation</p>
+    </section>
+
+    <!-- ── UPLOAD ──────────────────────────────────────────────────────── -->
+    <section class="glass-card" id="upload-section">
+      <div class="card-head">
+        <h2 class="card-title"><span class="c-icon">⬆</span> Upload Dataset</h2>
+        <span class="badge">CSV / TSV</span>
       </div>
-    </div>
-    <button class="btn btn-primary btn-lg" id="run-btn" disabled>
-      <span class="btn-icon">🚀</span> Run IV Analysis
-    </button>
-  </section>
 
-  <!-- ─── ANALYSIS RESULTS ─────────────────────────────────────────────── -->
-  <section class="card hidden" id="analysis-section">
-    <div class="card-header">
-      <span class="card-icon">📈</span>
-      <h2 class="card-title">IV Analysis Results</h2>
-      <div class="spinner hidden" id="analysis-spinner"></div>
-    </div>
-
-    <!-- Metrics bar -->
-    <div class="metrics-bar hidden" id="metrics-bar">
-      <div class="metric-chip metric-total">  <span class="mc-val" id="m-total">—</span><span class="mc-lbl">Features</span></div>
-      <div class="metric-chip metric-vs">     <span class="mc-val" id="m-vs">—</span>   <span class="mc-lbl">Very Strong</span></div>
-      <div class="metric-chip metric-s">      <span class="mc-val" id="m-s">—</span>    <span class="mc-lbl">Strong</span></div>
-      <div class="metric-chip metric-m">      <span class="mc-val" id="m-m">—</span>    <span class="mc-lbl">Moderate</span></div>
-      <div class="metric-chip metric-w">      <span class="mc-val" id="m-w">—</span>    <span class="mc-lbl">Weak</span></div>
-      <div class="metric-chip metric-n">      <span class="mc-val" id="m-n">—</span>    <span class="mc-lbl">Not Useful</span></div>
-      <div class="metric-chip metric-avg">    <span class="mc-val" id="m-avg">—</span>  <span class="mc-lbl">Avg IV</span></div>
-    </div>
-
-    <!-- Chart -->
-    <div id="iv-chart" class="chart-container hidden"></div>
-
-    <!-- Summary table -->
-    <div class="section-sub-header hidden" id="summary-header">
-      <span class="card-icon-sm">📋</span> Feature Summary Table
-    </div>
-    <div class="table-scroll hidden" id="summary-table"></div>
-
-    <!-- WoE table -->
-    <div class="section-sub-header hidden" id="woe-header">
-      <span class="card-icon-sm">🔍</span> Weight of Evidence — Top 3 Features
-    </div>
-    <div class="table-scroll hidden" id="woe-table"></div>
-
-    <!-- Recommendations -->
-    <div class="section-sub-header hidden" id="rec-header">
-      <span class="card-icon-sm">💡</span> Feature Recommendations
-    </div>
-    <div id="rec-cards" class="rec-grid hidden"></div>
-  </section>
-
-  <!-- ─── IV EXPERT AGENT ───────────────────────────────────────────────── -->
-  <section class="card" id="agent-section">
-    <div class="card-header">
-      <span class="card-icon">🤖</span>
-      <h2 class="card-title">IV / WoE Expert Agent</h2>
-      <span class="card-badge badge-ai">GPT-4o</span>
-    </div>
-    <p class="agent-intro">Ask the AI expert about your IV results — it has full context of your current analysis.</p>
-    <div class="prompt-pills">
-      <button class="prompt-pill" data-q="Why is the top feature showing such a high IV value?">Why is the top feature so strong?</button>
-      <button class="prompt-pill" data-q="What feature engineering would you recommend for moderate predictors?">Engineering for moderate predictors</button>
-      <button class="prompt-pill" data-q="Which features should I investigate for potential data leakage?">Check for data leakage</button>
-      <button class="prompt-pill" data-q="Should I include weak predictors in my final model?">Include weak predictors?</button>
-    </div>
-    <div class="chat-box" id="iv-chat-box">
-      <div class="chat-empty">Ask a question to get expert guidance on your IV results.</div>
-    </div>
-    <div class="chat-input-row">
-      <textarea id="iv-question" class="chat-input" placeholder="E.g. How can I improve the predictive power of my weak features?" rows="2"></textarea>
-      <button class="btn btn-primary btn-send" id="iv-ask-btn">Ask Expert</button>
-    </div>
-    <div class="spinner hidden" id="iv-spinner"></div>
-  </section>
-
-  <!-- ─── GENERAL DATA AGENT ────────────────────────────────────────────── -->
-  <section class="card" id="general-section">
-    <div class="card-header">
-      <span class="card-icon">🔬</span>
-      <h2 class="card-title">General Data Science Agent</h2>
-      <span class="card-badge badge-langchain">LangChain</span>
-    </div>
-    <p class="agent-intro">Exploratory analysis, custom visualisations, statistical computations — powered by LangChain.</p>
-
-    <div class="cols-grid cols-2">
-      <div class="select-group">
-        <label class="form-label">Numerical Variables</label>
-        <div class="multi-select-wrap" id="gen-num-wrap"></div>
+      <div class="dropzone" id="drop-zone">
+        <div class="dz-ring">
+          <div class="dz-icon">⬆</div>
+        </div>
+        <p class="dz-label">Drop file here or <label for="file-input" class="dz-link">browse</label></p>
+        <p class="dz-hint">.csv · .tsv · .txt  ·  up to 50 MB</p>
+        <input type="file" id="file-input" accept=".csv,.tsv,.txt" hidden />
       </div>
-      <div class="select-group">
-        <label class="form-label">Dependent Variable</label>
-        <select id="gen-dep-select" class="select-field"><option value="">-- select --</option></select>
+
+      <div id="upload-feedback" class="feedback hidden"></div>
+
+      <div id="bins-row" class="hidden" style="margin-top:1.5rem">
+        <label class="form-label">Bins for numeric features</label>
+        <div class="slider-row">
+          <input type="range" id="bins-slider" min="2" max="10" value="5" class="slider" />
+          <span class="slider-val" id="bins-val">5</span>
+        </div>
       </div>
-    </div>
 
-    <div class="chat-box" id="gen-chat-box">
-      <div class="chat-empty">Ask questions about your dataset. Try: "Show me the distribution of [feature]"</div>
-    </div>
-    <div class="chat-input-row">
-      <textarea id="gen-question" class="chat-input" placeholder="E.g. Show me a correlation heatmap of all numeric features." rows="2"></textarea>
-      <button class="btn btn-secondary btn-send" id="gen-ask-btn">Ask Agent</button>
-    </div>
-    <div class="spinner hidden" id="gen-spinner"></div>
-    <div class="plot-output hidden" id="gen-plot"></div>
-  </section>
+      <div id="preview-wrap" class="hidden" style="margin-top:1.5rem">
+        <p class="section-sub">Data Preview</p>
+        <div class="tbl-scroll" id="preview-table"></div>
+        <p class="dim-note" id="dataset-info"></p>
+      </div>
+    </section>
 
-</main>
+    <!-- ── COLUMN CONFIG ───────────────────────────────────────────────── -->
+    <section class="glass-card hidden" id="cols-section">
+      <div class="card-head">
+        <h2 class="card-title"><span class="c-icon">🎯</span> Column Configuration</h2>
+      </div>
+      <div class="col-grid">
+        <div class="col-group">
+          <label class="form-label">Target Column <span class="req-badge">binary 0/1</span></label>
+          <select id="target-select" class="select-field">
+            <option value="">— select target —</option>
+          </select>
+        </div>
+        <div class="col-group">
+          <label class="form-label">Independent Features</label>
+          <div class="chip-wrap" id="indep-wrap"></div>
+        </div>
+        <div class="col-group">
+          <label class="form-label">Exclude Columns <span class="opt-badge">optional</span></label>
+          <div class="chip-wrap" id="excl-wrap"></div>
+        </div>
+      </div>
+      <button class="run-btn" id="run-btn" disabled>
+        <span class="run-icon">▶</span> Run IV Analysis
+      </button>
+    </section>
 
-<!-- ═══ FOOTER ══════════════════════════════════════════════════════════════ -->
-<footer class="footer">
-  <p>SignalSifter v2.0 · Dr. Amobi Andrew Onovo · Quantium Insights LLC</p>
-  <p class="footer-note">🔒 Data is ephemeral — session-only, never stored permanently.</p>
-</footer>
+    <!-- ── ANALYSIS RESULTS ────────────────────────────────────────────── -->
+    <section class="glass-card hidden" id="analysis-section">
+      <div class="card-head">
+        <h2 class="card-title"><span class="c-icon">📈</span> Analysis Results</h2>
+        <div class="spinner hidden" id="analysis-spinner"></div>
+      </div>
+
+      <!-- Stat strip -->
+      <div class="stat-strip hidden" id="stat-strip">
+        <div class="stat-tile st-total">
+          <span class="st-val" id="m-total">—</span><span class="st-lbl">Features</span>
+        </div>
+        <div class="stat-tile st-vs">
+          <span class="st-val" id="m-vs">—</span><span class="st-lbl">Very Strong</span>
+        </div>
+        <div class="stat-tile st-s">
+          <span class="st-val" id="m-s">—</span><span class="st-lbl">Strong</span>
+        </div>
+        <div class="stat-tile st-m">
+          <span class="st-val" id="m-m">—</span><span class="st-lbl">Moderate</span>
+        </div>
+        <div class="stat-tile st-w">
+          <span class="st-val" id="m-w">—</span><span class="st-lbl">Weak</span>
+        </div>
+        <div class="stat-tile st-n">
+          <span class="st-val" id="m-n">—</span><span class="st-lbl">Not Useful</span>
+        </div>
+        <div class="stat-tile st-avg">
+          <span class="st-val" id="m-avg">—</span><span class="st-lbl">Avg IV</span>
+        </div>
+      </div>
+
+      <div class="chart-wrap hidden" id="iv-chart"></div>
+
+      <div class="sub-head hidden" id="summary-header">📋 Feature Summary</div>
+      <div class="tbl-scroll hidden" id="summary-table"></div>
+
+      <div class="sub-head hidden" id="woe-header">🔍 WoE Table — Top 3 Features</div>
+      <div class="tbl-scroll hidden" id="woe-table"></div>
+
+      <!-- LLM Recommendations -->
+      <div class="sub-head hidden" id="rec-header">
+        <span>💡 AI-Powered Feature Recommendations</span>
+        <span class="badge badge-ai">GPT-4o</span>
+      </div>
+      <div class="rec-loading hidden" id="rec-loading">
+        <div class="spinner"></div>
+        <span>Generating expert recommendations…</span>
+      </div>
+      <div class="rec-grid hidden" id="rec-cards"></div>
+    </section>
+
+    <!-- ── IV EXPERT AGENT ─────────────────────────────────────────────── -->
+    <section class="glass-card" id="agent-section">
+      <div class="card-head">
+        <h2 class="card-title"><span class="c-icon">🤖</span> IV / WoE Expert Agent</h2>
+        <span class="badge badge-ai">GPT-4o</span>
+      </div>
+      <p class="agent-intro">Ask anything about your IV results. The agent has full context of your current analysis.</p>
+      <div class="prompt-row">
+        <button class="ppill" data-q="Why is the top feature showing such a high IV value?">Why is top feature so strong?</button>
+        <button class="ppill" data-q="What feature engineering would you recommend for moderate predictors?">Engineer moderate predictors</button>
+        <button class="ppill" data-q="Which features should I investigate for potential data leakage?">Check for data leakage</button>
+        <button class="ppill" data-q="Should I include weak predictors in my final model?">Include weak predictors?</button>
+      </div>
+      <div class="chat-box" id="iv-chat-box">
+        <div class="chat-empty">Run an IV analysis first, then ask expert questions here.</div>
+      </div>
+      <div class="chat-controls">
+        <div class="chat-input-wrap">
+          <textarea id="iv-question" class="chat-input" placeholder="E.g. How can I improve the predictive power of my weak features?" rows="2"></textarea>
+          <button class="send-btn send-primary" id="iv-ask-btn">Ask Expert</button>
+        </div>
+        <div class="chat-bar">
+          <div class="spinner hidden" id="iv-spinner"></div>
+          <button class="btn-clear" id="iv-clear-btn">🗑 Clear</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── GENERAL DATA AGENT ──────────────────────────────────────────── -->
+    <section class="glass-card" id="general-section">
+      <div class="card-head">
+        <h2 class="card-title"><span class="c-icon">🔬</span> General Data Science Agent</h2>
+        <span class="badge badge-mem">GPT-4o + Memory</span>
+      </div>
+      <p class="agent-intro">Plotly visualisations · Python code · SQL queries · Statistical analysis — with full conversation memory.</p>
+
+      <div class="col-grid cols-2">
+        <div class="col-group">
+          <label class="form-label">Numerical Variables</label>
+          <div class="chip-wrap" id="gen-num-wrap"></div>
+        </div>
+        <div class="col-group">
+          <label class="form-label">Dependent Variable</label>
+          <select id="gen-dep-select" class="select-field">
+            <option value="">— select —</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="chat-box" id="gen-chat-box">
+        <div class="chat-empty">Ask questions about your dataset. Charts and code appear inline.</div>
+      </div>
+      <div class="plot-output hidden" id="gen-plot"></div>
+      <div class="chat-controls">
+        <div class="chat-input-wrap">
+          <textarea id="gen-question" class="chat-input" placeholder="E.g. Plot a correlation heatmap of all numeric features using Plotly." rows="2"></textarea>
+          <button class="send-btn send-secondary" id="gen-ask-btn">Ask Agent</button>
+        </div>
+        <div class="chat-bar">
+          <div class="spinner hidden" id="gen-spinner"></div>
+          <button class="btn-clear" id="gen-clear-btn">🗑 Clear</button>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- end page-content -->
+
+  <footer class="page-footer">
+    <p>SignalSifter v2.1 · Quantium Insights LLC · Dr. Amobi Andrew Onovo</p>
+    <p class="footer-note">🔒 Session-only — data deleted on close</p>
+  </footer>
+
+</div><!-- end main-panel -->
 
 <script src="app.js"></script>
 </body>

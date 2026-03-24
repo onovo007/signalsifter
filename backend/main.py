@@ -1,7 +1,6 @@
 """
-SignalSifter – FastAPI Backend
+SignalSifter – FastAPI Backend (v2.1)
 Dr. Amobi Andrew Onovo
-Run locally:  uvicorn main:app --reload --port 8000
 """
 import io
 import uuid
@@ -15,28 +14,23 @@ from pydantic import BaseModel
 from iv_analysis import run_analysis
 from agents import iv_expert_agent, general_data_agent
 
-# ── App setup ─────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="SignalSifter API",
     description="Advanced Feature Selection with IV/WoE Analysis & AI-Powered Insights",
-    version="2.0.0",
+    version="2.1.0",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],          # tighten in production: list Netlify domain
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ── In-memory session store ───────────────────────────────────────────────────
-# Stores DataFrames & IV results keyed by session UUID.
-# Suitable for Render's free / starter tier (single instance).
+# In-memory session store
 sessions: dict = {}
-
-MAX_SESSIONS = 200   # evict oldest when exceeded
-
+MAX_SESSIONS = 200
 
 def _evict_if_needed():
     if len(sessions) > MAX_SESSIONS:
@@ -44,7 +38,7 @@ def _evict_if_needed():
         sessions.pop(oldest, None)
 
 
-# ── Request / response models ─────────────────────────────────────────────────
+# ── Request models ────────────────────────────────────────────────────────────
 class AnalyseRequest(BaseModel):
     session_id: str
     target: str
@@ -52,33 +46,33 @@ class AnalyseRequest(BaseModel):
     exclude: list[str] = []
     bins: int = 5
 
-
 class IVAgentRequest(BaseModel):
     session_id: str
     question: str
 
+class ChatMessage(BaseModel):
+    role: str
+    content: str
 
 class GeneralAgentRequest(BaseModel):
     session_id: str
     question: str
     num_cols: list[str] = []
     dep_col: Optional[str] = None
+    history: list[ChatMessage] = []   # full conversation history for memory
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "SignalSifter API v2.0"}
+    return {"status": "ok", "service": "SignalSifter API v2.1"}
 
 
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
-    """Accept CSV or TSV, return session_id + column list + preview rows."""
     _evict_if_needed()
-
     content = await file.read()
     fname = file.filename or ""
-
     try:
         sep = "\t" if fname.lower().endswith((".tsv", ".txt")) else ","
         df = pd.read_csv(io.BytesIO(content), sep=sep)
@@ -92,31 +86,26 @@ async def upload_file(file: UploadFile = File(...)):
     sessions[session_id] = {"df": df, "iv_results": None}
 
     preview = df.head(8).fillna("").astype(str).to_dict(orient="records")
-    columns = list(df.columns)
-
     return {
         "session_id": session_id,
         "rows": len(df),
-        "columns": columns,
+        "columns": list(df.columns),
         "preview": preview,
     }
 
 
 @app.post("/api/analyse")
 def analyse(req: AnalyseRequest):
-    """Run IV/WoE analysis and return results + Plotly JSON chart."""
     session = sessions.get(req.session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found. Please re-upload your file.")
 
-    df: pd.DataFrame = session["df"]
-
     if not req.features:
-        raise HTTPException(status_code=400, detail="No features selected for analysis.")
+        raise HTTPException(status_code=400, detail="No features selected.")
 
     try:
         results = run_analysis(
-            df=df,
+            df=session["df"],
             target=req.target,
             features=req.features,
             exclude=req.exclude,
@@ -127,30 +116,46 @@ def analyse(req: AnalyseRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Analysis error: {e}")
 
-    # persist IV results for agents
     sessions[req.session_id]["iv_results"] = results
     return results
 
 
 @app.post("/api/iv-agent")
 def iv_agent(req: IVAgentRequest):
-    """Ask the IV-aware expert agent a question about current results."""
     session = sessions.get(req.session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found.")
-
-    iv_results = session.get("iv_results")
-    answer = iv_expert_agent(req.question, iv_results)
+    answer = iv_expert_agent(req.question, session.get("iv_results"))
     return {"answer": answer}
 
 
 @app.post("/api/general-agent")
 def general_agent(req: GeneralAgentRequest):
-    """Ask the LangChain general data science agent."""
     session = sessions.get(req.session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found.")
 
-    df: pd.DataFrame = session["df"]
-    result = general_data_agent(req.question, df, req.num_cols, req.dep_col)
+    history = [{"role": m.role, "content": m.content} for m in req.history]
+
+    result = general_data_agent(
+        question=req.question,
+        df=session["df"],
+        num_cols=req.num_cols,
+        dep_col=req.dep_col,
+        history=history,
+    )
     return result
+
+
+@app.post("/api/llm-recommendations")
+def get_llm_recommendations(req: IVAgentRequest):
+    """Generate GPT-4o powered recommendations for all features."""
+    from agents import llm_recommendations
+    session = sessions.get(req.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found.")
+    iv_results = session.get("iv_results")
+    if not iv_results:
+        raise HTTPException(status_code=400, detail="Run IV analysis first.")
+    recs = llm_recommendations(iv_results)
+    return {"recommendations": recs}

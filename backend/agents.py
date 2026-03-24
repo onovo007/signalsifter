@@ -91,8 +91,8 @@ PLOTLY STYLE (always apply these):
 
 # ── General Data Science Agent ────────────────────────────────────────────────
 def general_data_agent(question: str, df: pd.DataFrame,
-                       num_cols: list, dep_col: str,
-                       history: list = None) -> dict:
+                       cat_cols: list = None, num_cols: list = None,
+                       dep_col: str = None, history: list = None) -> dict:
     """
     Enhanced agent with Plotly charts, conversation memory, Python + SQL generation.
     history: list of {"role": "user"|"assistant", "content": str}
@@ -101,7 +101,7 @@ def general_data_agent(question: str, df: pd.DataFrame,
         return {"text": "No dataset loaded. Please upload a file first.",
                 "plotly_json": None, "code": None}
 
-    df_info = _build_df_context(df, num_cols, dep_col)
+    df_info = _build_df_context(df, cat_cols or [], num_cols or [], dep_col)
 
     messages = [{"role": "system", "content": SYSTEM_PROMPT + "\n\n" + df_info}]
 
@@ -142,7 +142,7 @@ def general_data_agent(question: str, df: pd.DataFrame,
         }
 
 
-def _build_df_context(df: pd.DataFrame, num_cols: list, dep_col: str) -> str:
+def _build_df_context(df: pd.DataFrame, cat_cols: list, num_cols: list, dep_col: str) -> str:
     """Build a rich dataframe context string for the LLM."""
     shape = df.shape
     dtypes = df.dtypes.to_string()
@@ -153,6 +153,7 @@ def _build_df_context(df: pd.DataFrame, num_cols: list, dep_col: str) -> str:
     numeric_df = df.select_dtypes(include=[np.number])
     stats = numeric_df.describe().round(3).to_string() if not numeric_df.empty else "N/A"
 
+    selected_cat = f"User-selected categorical columns: {cat_cols}" if cat_cols else ""
     selected_num = f"User-selected numerical columns: {num_cols}" if num_cols else ""
     selected_dep = f"Dependent variable: {dep_col}" if dep_col else ""
 
@@ -170,6 +171,7 @@ Descriptive statistics:
 Sample rows:
 {sample}
 
+{selected_cat}
 {selected_num}
 {selected_dep}
 

@@ -57,6 +57,7 @@ class ChatMessage(BaseModel):
 class GeneralAgentRequest(BaseModel):
     session_id: str
     question: str
+    cat_cols: list[str] = []
     num_cols: list[str] = []
     dep_col: Optional[str] = None
     history: list[ChatMessage] = []   # full conversation history for memory
@@ -140,6 +141,7 @@ def general_agent(req: GeneralAgentRequest):
     result = general_data_agent(
         question=req.question,
         df=session["df"],
+        cat_cols=req.cat_cols,
         num_cols=req.num_cols,
         dep_col=req.dep_col,
         history=history,

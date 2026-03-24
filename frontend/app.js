@@ -131,6 +131,12 @@ function populateColumnSelectors(cols) {
   buildChips("indep-wrap", cols, state.selectedFeatures, "teal");
   buildChips("excl-wrap",  cols, state.selectedExclude,  "excl");
 
+  // Detect categorical vs numeric and pre-populate chips
+  const dtypes_numeric = cols.filter(c => {
+    const vals = []; // We don't have dtype info client-side, so populate all in both
+    return true;
+  });
+  buildChips("gen-cat-wrap", cols, new Set(), "teal");
   buildChips("gen-num-wrap", cols, new Set(), "teal");
   const gDep = $("gen-dep-select");
   gDep.innerHTML = `<option value="">— select —</option>`;
@@ -308,6 +314,7 @@ async function askIVAgent() {
 async function askGeneralAgent() {
   const q = $("gen-question").value.trim();
   if (!q || !state.sessionId) return;
+  const catCols = [...$("gen-cat-wrap").querySelectorAll(".col-chip.selected")].map(c=>c.dataset.col);
   const numCols = [...$("gen-num-wrap").querySelectorAll(".col-chip.selected")].map(c=>c.dataset.col);
   const depCol  = $("gen-dep-select").value;
   appendChat("gen-chat-box","user",q);
@@ -320,7 +327,7 @@ async function askGeneralAgent() {
       method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({
         session_id: state.sessionId, question:q,
-        num_cols:numCols, dep_col:depCol,
+        cat_cols:catCols, num_cols:numCols, dep_col:depCol,
         history: state.genHistory.slice(-10),
       }),
     });

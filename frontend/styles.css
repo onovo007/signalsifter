@@ -635,3 +635,6 @@ td.iv-cell { font-weight: 700; font-family: var(--font-mono); }
   .st-val { font-size: 1.2rem; }
   .rec-grid { grid-template-columns: 1fr; }
 }
+
+/* ── 3-column grid for general agent ──────────────────────────────────── */
+.cols-3 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
